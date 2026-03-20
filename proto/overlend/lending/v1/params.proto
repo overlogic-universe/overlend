@@ -16,10 +16,10 @@ message Params {
     bool liquidation_enabled = 3;
 
     // batas global umur data harga
-    string oracle_staleness_limit = 4;
-
+    string oracle_staleness_limit = 4 [(gogoproto.customtype) = "cosmossdk.io/math.Int"];
+ 
     // batas selisih harga maksimum yang diterima
-    string max_price_deviation = 5;
+    string max_price_deviation = 5 [(gogoproto.customtype) = "cosmossdk.io/math.LegacyDec"];
 
     // kill switch seluruh protocol
     bool emergency_pause = 6;

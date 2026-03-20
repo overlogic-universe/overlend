@@ -3,17 +3,19 @@ syntax = "proto3";
 package overlend.lending.v1;
 
 import "cosmos/msg/v1/msg.proto";
-import "gogoproto/gogo.proto"
+import "gogoproto/gogo.proto";
 
 option go_package = "github.com/overlogic-universe/overlend/x/lending/types";
 
 // Msg mendefinisikan lending Msg Service
 service Msg {
+    option (cosmos.msg.v1.service) = true;
+
     // Endpoint untuk deposit collateral (user setor jaminan)
     rpc DepositCollateral(MsgDepositCollateral) returns (MsgDepositCollateralResponse);
 
     // Endpoint untuk tarik collateral
-    rpc WidhdrawCollateral(MsgWithdrawCollateral) returns (MsgWithdrawCollateralResponse);
+    rpc WithdrawCollateral(MsgWithdrawCollateral) returns (MsgWithdrawCollateralResponse);
     
     // Endpoint untuk meminjam aset
     rpc Borrow(MsgBorrow) returns (MsgBorrowResponse);
@@ -33,7 +35,7 @@ message MsgDepositCollateral {
     string sender = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
 
     // Jenis aset yang dideposit
-    string denom =2 ;
+    string denom = 2;
 
     // Jumlah collateral dalam unit terkecil (precision-safe, tanpa float)
     string amount = 3 [(gogoproto.customtype) = "cosmossdk.io/math.Int"];
@@ -132,4 +134,4 @@ message MsgLiquidate {
     int64 deadline = 8;
 }
 
-message MsgLiqudateRepsonse {}
+message MsgLiqudateResponse {}

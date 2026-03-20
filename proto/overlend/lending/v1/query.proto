@@ -47,7 +47,7 @@ service Query {
 message QueryParamsRequest {}
 
 message QueryParamsResponse {
-  Params params = 1;
+    Params params = 1;
 }
 
 message QueryMarketRequest {
