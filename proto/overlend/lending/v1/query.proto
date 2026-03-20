@@ -1,0 +1,130 @@
+syntax = "proto3";
+
+package overlend.lending.v1;
+
+import "cosmos/query/v1/query.proto";
+import "cosmos/base/query/v1beta1/pagination.proto";
+import "cosmos_proto/cosmos.proto";
+
+import "overlend/lending/v1/lending.proto";
+import "overlend/lending/v1/params.proto";
+
+option go_package = "github.com/overlogic-universe/overlend/x/lending/types";
+
+// Query, read-only API (gRPC + REST) untuk ambil data dari blockchain
+service Query {
+    option (cosmos.query.v1.service) = true;
+
+    // Params, ambil global config module
+    rpc Params(QueryParamsRequest) returns (QueryParamsResponse);
+
+    // Market, ambil 1 market by denom
+    rpc Market(QueryMarketRequest) returns (QueryMarketResponse);
+
+    // Markets, ambil semua market (dengan pagination)
+    rpc Markets(QueryMarketsRequest) returns (QueryMarketsResponse);
+
+    // UserCollateral, ambil collateral user untuk 1 aset
+    rpc UserCollateral(QueryUserCollateralRequest) returns (QueryUserCollateralResponse);
+
+    // UserCollaterals, ambil semua collateral user
+    rpc UserCollaterals(QueryUserCollateralsRequest) returns (QueryUserCollateralsResponse);
+
+    // UserDebt, ambil utang user untuk 1 aset
+    rpc UserDebt(QueryUserDebtRequest) returns (QueryUserDebtResponse);
+
+    // UserDebts, ambil semua utang user
+    rpc UserDebts(QueryUserDebtsRequest) returns (QueryUserDebtsResponse);
+
+    // UserPosition, ambil posisi finansial user secara agregat
+    rpc UserPosition(QueryUserPositionRequest) returns (QueryUserPositionResponse);
+
+    // MarketState, ambil state runtime market
+    rpc MarketState(QueryMarketStateRequest) returns (QueryMarketStateResponse);
+
+}
+
+message QueryParamsRequest {}
+
+message QueryParamsResponse {
+  Params params = 1;
+}
+
+message QueryMarketRequest {
+    string denom = 1;
+}
+
+message QueryMarketResponse {
+    Market market = 1;
+}
+
+message QueryMarketsRequest {
+    cosmos.base.query.v1beta1.PageRequest pagination = 1;
+}
+
+message QueryMarketsResponse {
+    repeated Market markets = 1;
+    cosmos.base.query.v1beta1.PageResponse pagination = 2;
+}
+
+
+message QueryUserCollateralRequest {
+    string address = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+    string denom = 2;
+}
+
+message QueryUserCollateralResponse {
+    UserCollateral collateral = 1;
+}
+
+message QueryUserCollateralsRequest {
+    string address = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+}
+
+message QueryUserCollateralsResponse {
+    repeated UserCollateral collaterals = 1;
+}
+
+message QueryUserDebtRequest {
+    string address = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+    string denom = 2;
+}
+
+message QueryUserDebtResponse {
+    UserDebt debt = 1;
+}
+
+message QueryUserDebtsRequest {
+    string address = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+}
+
+message QueryUserDebtsResponse {
+    repeated UserDebt debts = 1;
+}
+
+message QueryUserPositionRequest {
+    string address = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+}
+
+message QueryUserPositionResponse {
+    // total nilai collateral user (biasanya dalam USD)
+    // dihitung dari amount × harga oracle
+    string total_collateral_value = 1;
+
+    // total utang user (termasuk interest/bunga)
+    string total_debt_value = 2;
+    // maksimal utang yang boleh dimiliki user
+    string borrow_limit = 3;
+    // batas di mana user mulai bisa dilikuidasi
+    string liquidation_limit = 4;
+    // indikator kesehatan posisi user
+    string health_factor = 5;
+}
+
+message QueryMarketStateRequest {
+  string denom = 1;
+}
+
+message QueryMarketStateResponse {
+  MarketState state = 1;
+}
