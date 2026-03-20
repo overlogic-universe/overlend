@@ -1,0 +1,170 @@
+syntax = "proto3";
+
+package overlend.lending.v1;
+
+import "cosmos/base/v1beta1/coin.proto";
+import "gogoproto/gogo.proto";
+
+option go_package = "github.com/overlogic-universe/overlend/x/lending/types";
+
+// ENUMS 
+enum MarketType {
+    MARKET_TYPE_UNSPECIFIED = 0;
+
+    // semua asset collateral bisa digabung (cross-collateral)
+    // punya ETH + ATOM, bisa pinjam berdasarkan total nilai keduanya
+    MARKET_TYPE_SHARED = 1;
+
+    // lebih ketat, risiko dibatasi. 
+    // satu collateral -> satu posisi pinjaman
+    // deposit aset A → hanya bisa pinjam terhadap A itu saja
+    MARKET_TYPE_ISOLATED = 2;
+}
+
+enum OracleSourceType {
+    ORACLE_SOURCE_UNSPECIFIED = 0;
+    // harga rata-rata dalam periode waktu tertentu, biasanya dari DEX
+    ORACLE_SOURCE_TWAP = 1;
+    // harga dari Chainlink oracle
+    ORACLE_SOURCE_CHAINLINK = 2;
+}
+
+
+// CORE DOMAIN MODELS
+
+// Market adlh konfigurasi utama (risk & parameter) untuk satu market lending per aset (denom).
+message Market {
+    // aset yang dipakai di market. Cth: "uusdc"
+    string denom = 1;
+
+    // jenis market
+    MarketType market_type = 2;
+
+    // seberapa besar user boleh pinjam dari collateral (persen)
+    string ltv = 3 [(gogoproto.customtype) = "cosmossdk.io/math.LegacyDec"];
+    // batas aman sebelum kena likuidasi (persen)
+    string liquidation_threshold = 4 [(gogoproto.customtype) = "cosmossdk.io/math.LegacyDec"];
+    // bonus untuk liquidator (persen)
+    string liquidation_bonus = 5 [(gogoproto.customtype) = "cosmossdk.io/math.LegacyDec"];
+    // bagian bunga yang masuk ke protocol (bukan ke lender) (persen)
+    string reserve_factor = 6 [(gogoproto.customtype) = "cosmossdk.io/math.LegacyDec"];
+    // maksimal porsi utang yang bisa dilikuidasi sekaligus (persen)
+    string close_factor = 7 [(gogoproto.customtype) = "cosmossdk.io/math.LegacyDec"];
+
+    // batas total borrow di market ini
+    string borrow_cap = 8 [(gogoproto.customtype) = "cosmossdk.io/math.Int"];
+    // batas total supply
+    string supply_cap = 9 [(gogoproto.customtype) = "cosmossdk.io/math.Int"];
+
+    // market aktif atau tidak
+    bool is_enabled = 10;
+
+    // model bunga
+    InterestRateModel interest_model = 11;
+    // sumber harga aset (penting untuk LTV & liquidation)
+    OracleConfig oracle = 12;
+    // level risiko aset
+    uint32 risk_tier = 13;
+}
+
+// UserCollateral menyimpan data collateral (jaminan) yang disetor user untuk satu aset (denom)
+message UserCollateral {
+    // alamat user yang menyetor collateral
+    bytes address = 1;
+    // jenis aset yang dijadikan collateral
+    string denom = 2;
+    // jumlah aset yang dijadikan collateral
+    string amount = 3 [(gogoproto.customtype) = "cosmossdk.io/math.Int"];
+}
+
+// UserDebt menyimpan state utang per user untuk satu aset (denom), 
+// dan dia pakai model berbasis index (bukan update bunga tiap waktu)
+message UserDebt {
+    // alamat user (borrower)
+    bytes address = 1;
+    // aset yang dipinjam. Cth: "uusdc"
+    string denom = 2;
+
+    // Jumlah pokok utang saat terakhir dicatat. belum termasuk bunga terbaru
+    string principal = 3 [(gogoproto.customtype) = "cosmossdk.io/math.Int"];
+
+    // nilai borrow_index saat terakhir user berinteraksi
+    string interest_index_snapshot = 4 [(gogoproto.customtype) = "cosmossdk.io/math.LegacyDec"];
+}
+
+// MarketState menyimpan state global (kondisi terkini) 
+// dari satu market lending untuk satu aset (denom)
+message MarketState {
+    // identitas aset market. Cth: "uusdc", "uatom"
+    string denom = 1;
+
+    // Total semua dana yang disupply oleh lender
+    string total_supply = 2 [(gogoproto.customtype) = "cosmossdk.io/math.Int"];
+    // total semua dana yang dipinjam
+    string total_borrow = 3 [(gogoproto.customtype) = "cosmossdk.io/math.Int"];
+
+    // index akumulasi bunga untuk borrower.
+    // bukan langsung simpan bunga per user, tapi pakai index global
+    string borrow_index = 4 [(gogoproto.customtype) = "cosmossdk.io/math.LegacyDec"];
+    // index akumulasi bunga untuk lender. Mirip borrow_index tapi untuk yang deposit / supply
+    // fungsi: menentukan berapa reward/lending yield user
+    string supply_index = 5 [(gogoproto.customtype) = "cosmossdk.io/math.LegacyDec"];
+
+    // block terakhir state ini di-update
+    int64 last_updated_block = 6;
+    // timestamp terakhir update
+    int64 last_updated_time = 7;
+}
+
+// SUPPORTING MODELS
+
+// Interest = bunga pinjaman (biaya yang harus dibayar borrower, dan jadi pendapatan lender)
+// InterestRateModel mendefinisikan parameter-parameter 
+// model suku bunga yang bersifat “kinked” (punya titik perubahan perilaku) 
+message InterestRateModel {
+    // titik mulai bunga sebelum ada pengaruh utilisasi
+    string base_rate = 1 [(gogoproto.customtype) = "cosmossdk.io/math.LegacyDec"];
+
+    // laju kenaikan bunga di kondisi normal
+    string slope1 = 2 [(gogoproto.customtype) = "cosmossdk.io/math.LegacyDec"];
+    // laju kenaikan bunga di kondisi high utilization (lebih agresif)
+    string slope2 = 3 [(gogoproto.customtype) = "cosmossdk.io/math.LegacyDec"];
+
+    // titik perubahan laju peningkatan
+    string kink = 4 [(gogoproto.customtype) = "cosmossdk.io/math.LegacyDec"];
+
+    /*
+    Contoh angka biar kebayang
+        Misal: kink = 80%
+        
+        Dari 0% → 80%
+        bunga naik pelan (pakai slope1)
+
+        Dari 80% → 100%
+        bunga tetap naik, tapi sekarang lebih cepat (pakai slope2)
+    */
+}
+
+// Oracle menyediakan data harga aset dari dunia luar ke dalam sistem
+/*
+    Kalau user deposit:
+    - ETH sebagai collateral
+
+    Sistem harus tahu:
+    - harga ETH sekarang berapa?
+
+    -> ambil dari oracle
+*/
+// OracleConfig mendefinisikan settingan Oracle
+message OracleConfig {
+    // sumber utama harga. Contoh: Chainlink, twap,
+    OracleSourceType primary_source = 1;
+    // sumber cadangan (fallback), dipakai kalau primary error
+    OracleSourceType secondary_source = 2;
+
+    // batas maksimal umur data
+    string max_staleness = 3 [(gogoproto.customtype) = "cosmossdk.io/math.Int"];
+    // batas selisih antara primary vs secondary
+    string max_deviation = 4 [(gogoproto.customtype) = "cosmossdk.io/math.LegacyDec"];
+    bool oracle_enabled = 5;
+}

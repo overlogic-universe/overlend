@@ -1,0 +1,29 @@
+syntax = "proto3";
+
+package overlend.lending.v1;
+
+option go_package = "github.com/overlogic-universe/overlend/x/lending/types";
+
+// Params defines global module parameters
+message Params {
+    // jumlah maksimal market yang boleh ada di sistem
+    uint64 max_markets = 1;
+
+    // maksimal jumlah jenis collateral per user
+    uint64 max_collateral_assets_per_user = 2;
+
+    // apakah fitur likuidasi aktif
+    bool liquidation_enabled = 3;
+
+    // batas global umur data harga
+    string oracle_staleness_limit = 4;
+
+    // batas selisih harga maksimum yang diterima
+    string max_price_deviation = 5;
+
+    // kill switch seluruh protocol
+    bool emergency_pause = 6;
+
+    // apakah oracle aktif
+    bool oracle_enabled = 7;
+}
