@@ -3,6 +3,8 @@ syntax = "proto3";
 package overlend.lending.v1;
 
 import "gogoproto/gogo.proto";
+import "cosmos_proto/cosmos.proto"; 
+
 
 import "overlend/lending/v1/lending.proto";
 import "overlend/lending/v1/params.proto";

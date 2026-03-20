@@ -1,0 +1,18 @@
+version: "3.8"
+
+services:
+  overlend:
+    container_name: overlend-node
+    build: .
+    ports:
+      - "26656:26656"
+      - "26657:26657"
+      - "1317:1317"
+      - "9090:9090"
+    volumes:
+      - ./data:/root/.overlend
+    command: >
+      sh -c "
+      overlendd init test --chain-id overlend &&
+      overlendd start
+      "

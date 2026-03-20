@@ -5,6 +5,7 @@ package overlend.lending.v1;
 import "cosmos/query/v1/query.proto";
 import "cosmos/base/query/v1beta1/pagination.proto";
 import "cosmos_proto/cosmos.proto";
+import "gogoproto/gogo.proto";
 
 import "overlend/lending/v1/lending.proto";
 import "overlend/lending/v1/params.proto";
@@ -13,7 +14,6 @@ option go_package = "github.com/overlogic-universe/overlend/x/lending/types";
 
 // Query, read-only API (gRPC + REST) untuk ambil data dari blockchain
 service Query {
-    option (cosmos.query.v1.service) = true;
 
     // Params, ambil global config module
     rpc Params(QueryParamsRequest) returns (QueryParamsResponse);

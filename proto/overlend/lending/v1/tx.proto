@@ -4,6 +4,7 @@ package overlend.lending.v1;
 
 import "cosmos/msg/v1/msg.proto";
 import "gogoproto/gogo.proto";
+import "cosmos_proto/cosmos.proto"; 
 
 option go_package = "github.com/overlogic-universe/overlend/x/lending/types";
 
@@ -134,4 +135,4 @@ message MsgLiquidate {
     int64 deadline = 8;
 }
 
-message MsgLiqudateResponse {}
+message MsgLiquidateResponse  {}
