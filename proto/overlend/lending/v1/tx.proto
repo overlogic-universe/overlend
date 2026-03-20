@@ -1,0 +1,135 @@
+syntax = "proto3";
+
+package overlend.lending.v1;
+
+import "cosmos/msg/v1/msg.proto";
+import "gogoproto/gogo.proto"
+
+option go_package = "github.com/overlogic-universe/overlend/x/lending/types";
+
+// Msg mendefinisikan lending Msg Service
+service Msg {
+    // Endpoint untuk deposit collateral (user setor jaminan)
+    rpc DepositCollateral(MsgDepositCollateral) returns (MsgDepositCollateralResponse);
+
+    // Endpoint untuk tarik collateral
+    rpc WidhdrawCollateral(MsgWithdrawCollateral) returns (MsgWithdrawCollateralResponse);
+    
+    // Endpoint untuk meminjam aset
+    rpc Borrow(MsgBorrow) returns (MsgBorrowResponse);
+
+    // Endpoint untuk bayar utang
+    rpc Repay(MsgRepay) returns (MsgRepayResponse);
+
+    // Endpoint untuk proses likuidasi borrower yang tidak sehat
+    rpc Liquidate(MsgLiquidate) returns (MsgLiquidateResponse); 
+
+}
+
+message MsgDepositCollateral {
+    option (cosmos.msg.v1.signer) = "sender";
+
+    // Alamat user yang melakukan deposit
+    string sender = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+
+    // Jenis aset yang dideposit
+    string denom =2 ;
+
+    // Jumlah collateral dalam unit terkecil (precision-safe, tanpa float)
+    string amount = 3 [(gogoproto.customtype) = "cosmossdk.io/math.Int"];
+}
+
+message MsgDepositCollateralResponse {}
+
+message MsgWithdrawCollateral {
+    option (cosmos.msg.v1.signer) = "sender";
+
+    // User yang menarik collateral
+    string sender = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+    // Aset yang ditarik
+    string denom = 2;
+    // Jumlah yang ditarik  (diabaikan jika withdraw_all = true)
+    string amount = 3 [(gogoproto.customtype) = "cosmossdk.io/math.Int"];
+
+    // Jika true -> tarik seluruh collateral untuk denom ini (ignore amount)
+    bool withdraw_all = 4;
+    // Timestamp batas valid transaksi (anti front-running / delayed execution)
+    int64 deadline = 5;
+}
+
+message MsgWithdrawCollateralResponse {}
+
+message MsgBorrow {
+    option (cosmos.msg.v1.signer) = "sender";
+
+    // User yang meminjam
+    string sender = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+    // Aset yang dipinjam
+    string denom = 2;
+    // Jumlah pinjaman  yang diminta
+    string amount = 3 [(gogoproto.customtype) = "cosmossdk.io/math.Int"]; 
+
+    // Maksimum jumlah yang bersedia dipinjam (slippage / safety guard)
+    string max_borrow_amount = 4 [
+        (gogoproto.customtype) = "cosmossdk.io/math.Int"
+    ];
+
+    // Timestamp batas valid transaksi (mencegah eksekusi terlambat)
+    int64 deadline = 5;
+}
+
+message MsgBorrowResponse {}
+
+message MsgRepay {
+    option (cosmos.msg.v1.signer) = "sender";
+
+    // User yang membayar
+    string sender = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+    // Aset yang dibayar
+    string denom = 2;
+    // Jumlah yang dibayar
+    // amount diabaikan jika repay_all = true
+    string amount = 3[(gogoproto.customtype) = "cosmossdk.io/math.Int"];
+
+    // Jika true -> melunasi seluruh utang (principal + interest)
+    bool repay_all = 4;
+
+    // Timestamp batas valid transaksi 
+    int64 deadline = 5;
+}
+
+message MsgRepayResponse {}
+
+message MsgLiquidate {
+    option (cosmos.msg.v1.signer) = "liquidator";
+
+    // Alamat liquidator (eksekutor likuidasi)
+    string liquidator = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+
+    // Alamat borrower yang dilikuidasi
+    string borrower = 2 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+
+    // Denom aset yang digunakan untuk membayar utang borrower
+    string repay_denom = 3;
+
+    // Denom collateral yang akan disita
+    string collateral_denom = 4;
+
+    // Jumlah yang dibayar (diabaikan jika use_max = true)
+    string repay_amount = 5 [
+        (gogoproto.customtype) = "cosmossdk.io/math.Int"
+    ];
+
+    // Jika true -> gunakan maksimum yang diizinkan oleh close factor
+    bool use_max = 6;
+
+    // Minimum collateral yang harus diterima (proteksi slippage / oracle mismatch)
+    string min_collateral_receive = 7 [
+        (gogoproto.customtype) = "cosmossdk.io/math.Int"
+    ];
+
+    // Timestamp batas valid transaksi
+    int64 deadline = 8;
+}
+
+message MsgLiqudateRepsonse {}
